@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       manifest: {
-        name: "Gestión Cofradía",
-        short_name: "Cofradía",
+        name: "Purísima",
+        short_name: "Purísima",
         start_url: "/",
         display: "standalone",
         background_color: "#ffffff",

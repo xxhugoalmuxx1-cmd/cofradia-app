@@ -6,18 +6,12 @@ export default function Lottery() {
   const [campaignForm, setCampaignForm] = useState({ name: "", drawDate: "" });
   const [itemForms, setItemForms] = useState<Record<string, { number: string; price: string; donationAmount: string; unitsReceived: string }>>({});
   const [saleForms, setSaleForms] = useState<Record<string, { unitsSold: string; amountPaid: string }>>({});
-  const [summaries, setSummaries] = useState<Record<string, { sold: number; pending: number }>>({});
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function load() {
     const { data } = await api.get("/lottery/campaigns");
     setCampaigns(data);
-    // Carga el resumen (vendidas/pendientes) de cada número
-    data.forEach((c: any) =>
-      c.items?.forEach(async (item: any) => {
-        const { data: summary } = await api.get(`/lottery/items/${item.id}/summary`);
-        setSummaries((prev) => ({ ...prev, [item.id]: { sold: summary.sold, pending: summary.pending } }));
-      })
-    );
   }
 
   useEffect(() => {
@@ -26,13 +20,24 @@ export default function Lottery() {
 
   async function createCampaign(e: React.FormEvent) {
     e.preventDefault();
-    if (!campaignForm.name) return;
-    await api.post("/lottery/campaigns", {
-      name: campaignForm.name,
-      drawDate: campaignForm.drawDate || undefined,
-    });
-    setCampaignForm({ name: "", drawDate: "" });
-    load();
+    if (!campaignForm.name.trim()) {
+      setError("Ponle un nombre a la campaña");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      await api.post("/lottery/campaigns", {
+        name: campaignForm.name,
+        drawDate: campaignForm.drawDate || undefined,
+      });
+      setCampaignForm({ name: "", drawDate: "" });
+      await load();
+    } catch (err: any) {
+      setError(err.response?.data?.error || "No se ha podido crear la campaña");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function itemFormFor(campaignId: string) {
@@ -42,16 +47,24 @@ export default function Lottery() {
   async function createItem(campaignId: string, e: React.FormEvent) {
     e.preventDefault();
     const form = itemFormFor(campaignId);
-    if (!form.number || !form.price || !form.unitsReceived) return;
-    await api.post("/lottery/items", {
-      campaignId,
-      number: form.number,
-      price: Number(form.price),
-      donationAmount: Number(form.donationAmount || 0),
-      unitsReceived: Number(form.unitsReceived),
-    });
-    setItemForms((prev) => ({ ...prev, [campaignId]: { number: "", price: "", donationAmount: "", unitsReceived: "" } }));
-    load();
+    if (!form.number || !form.price || !form.unitsReceived) {
+      setError("Rellena número, precio y unidades recibidas");
+      return;
+    }
+    setError("");
+    try {
+      await api.post("/lottery/items", {
+        campaignId,
+        number: form.number,
+        price: Number(form.price),
+        donationAmount: Number(form.donationAmount || 0),
+        unitsReceived: Number(form.unitsReceived),
+      });
+      setItemForms((prev) => ({ ...prev, [campaignId]: { number: "", price: "", donationAmount: "", unitsReceived: "" } }));
+      load();
+    } catch (err: any) {
+      setError(err.response?.data?.error || "No se ha podido añadir el número");
+    }
   }
 
   function saleFormFor(itemId: string) {
@@ -63,13 +76,17 @@ export default function Lottery() {
     const form = saleFormFor(item.id);
     const units = Number(form.unitsSold || 1);
     const amount = Number(form.amountPaid || Number(item.price) * units);
-    await api.post("/lottery/sales", {
-      lotteryItemId: item.id,
-      unitsSold: units,
-      amountPaid: amount,
-    });
-    setSaleForms((prev) => ({ ...prev, [item.id]: { unitsSold: "1", amountPaid: "" } }));
-    load();
+    try {
+      await api.post("/lottery/sales", {
+        lotteryItemId: item.id,
+        unitsSold: units,
+        amountPaid: amount,
+      });
+      setSaleForms((prev) => ({ ...prev, [item.id]: { unitsSold: "1", amountPaid: "" } }));
+      load();
+    } catch (err: any) {
+      setError(err.response?.data?.error || "No se ha podido registrar la venta");
+    }
   }
 
   return (
@@ -91,7 +108,10 @@ export default function Lottery() {
           onChange={(e) => setCampaignForm({ ...campaignForm, drawDate: e.target.value })}
           className="w-full border rounded-lg px-3 py-2"
         />
-        <button className="w-full bg-brand text-white rounded-lg py-2">Crear campaña</button>
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+        <button disabled={loading} className="w-full bg-brand text-white rounded-lg py-2 disabled:opacity-60">
+          {loading ? "Creando…" : "Crear campaña"}
+        </button>
       </form>
 
       {campaigns.length === 0 && (
@@ -105,14 +125,12 @@ export default function Lottery() {
           {/* Lista de números con su resumen de ventas */}
           <ul className="divide-y">
             {c.items?.map((item: any) => {
-              const summary = summaries[item.id];
               return (
                 <li key={item.id} className="py-3 text-sm space-y-2">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center flex-wrap gap-1">
                     <span className="font-medium">Número {item.number} — {Number(item.price).toFixed(2)} €</span>
-                    <span className="text-gray-400">
-                      {item.unitsReceived} recibidas
-                      {summary && ` · ${summary.sold} vendidas · ${summary.pending} pendientes`}
+                    <span className="text-gray-400 text-xs">
+                      {item.unitsReceived} recibidas · {item.sold} vendidas · {item.pending} pendientes
                     </span>
                   </div>
                   <form onSubmit={(e) => registerSale(item, e)} className="flex gap-2">

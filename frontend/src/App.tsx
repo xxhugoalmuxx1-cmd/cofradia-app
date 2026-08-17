@@ -15,11 +15,13 @@ import Fees from "./pages/Fees";
 import Donations from "./pages/Donations";
 import Reports from "./pages/Reports";
 import Documents from "./pages/Documents";
+import CatalogPublic from "./pages/CatalogPublic";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/catalog" element={<CatalogPublic />} />
       <Route
         element={
           <ProtectedRoute>

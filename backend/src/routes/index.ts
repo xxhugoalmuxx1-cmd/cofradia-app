@@ -15,6 +15,8 @@ import feesRoutes from "../modules/fees/fees.routes";
 import donationsRoutes from "../modules/donations/donations.routes";
 import eventsRoutes from "../modules/events/events.routes";
 import documentsRoutes from "../modules/documents/documents.routes";
+import publicRoutes from "../modules/public/public.routes";
+import settingsRoutes from "../modules/settings/settings.routes";
 
 const router = Router();
 
@@ -31,6 +33,8 @@ router.use("/fees", feesRoutes);
 router.use("/donations", donationsRoutes);
 router.use("/events", eventsRoutes);
 router.use("/documents", documentsRoutes);
+router.use("/public", publicRoutes);
+router.use("/settings", settingsRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/audit-logs", auditRoutes);
 router.use("/reports", reportsRoutes);

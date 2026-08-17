@@ -22,7 +22,7 @@ router.get("/", requirePermission("sales.read"), async (_req, res) => {
 router.post("/", requirePermission("sales.create"), async (req: AuthedRequest, res, next) => {
   try {
     const { items, paymentMethod, memberId, eventId, cashRegisterId } = req.body as {
-      items: { productId: string; quantity: number }[];
+      items: { productId: string; quantity: number; unitPrice?: number }[];
       paymentMethod: string;
       memberId?: string;
       eventId?: string;
@@ -44,12 +44,19 @@ router.post("/", requirePermission("sales.create"), async (req: AuthedRequest, r
         });
         if (updated.count === 0) throw new ApiError(409, `Stock insuficiente para ${product.name}`);
 
-        const subtotal = Number(product.price) * item.quantity;
+        // Si se indica un precio distinto (ej. promoción, donativo extra, cambio manual),
+        // se usa ese en vez del precio de catálogo.
+        const effectivePrice =
+          item.unitPrice !== undefined && item.unitPrice !== null && !Number.isNaN(Number(item.unitPrice))
+            ? Number(item.unitPrice)
+            : Number(product.price);
+
+        const subtotal = effectivePrice * item.quantity;
         total += subtotal;
         saleItemsData.push({
           productId: item.productId,
           quantity: item.quantity,
-          unitPrice: product.price,
+          unitPrice: effectivePrice,
           subtotal,
         });
       }
@@ -79,15 +86,17 @@ router.post("/", requirePermission("sales.create"), async (req: AuthedRequest, r
         },
       });
 
-      // Si el pago es en efectivo y se indica caja, actualiza el saldo de caja
-      if (paymentMethod === "efectivo" && cashRegisterId) {
-        const register = await tx.cashRegister.findUnique({ where: { id: cashRegisterId } });
+      // Si el pago es en efectivo, se refleja en caja: si no se indica una
+      // caja concreta, se usa la caja principal por defecto.
+      if (paymentMethod === "efectivo") {
+        const targetRegisterId = cashRegisterId || "00000000-0000-0000-0000-000000000001";
+        const register = await tx.cashRegister.findUnique({ where: { id: targetRegisterId } });
         if (register) {
           const newBalance = Number(register.currentBalance) + total;
-          await tx.cashRegister.update({ where: { id: cashRegisterId }, data: { currentBalance: newBalance } });
+          await tx.cashRegister.update({ where: { id: targetRegisterId }, data: { currentBalance: newBalance } });
           await tx.cashMovement.create({
             data: {
-              cashRegisterId,
+              cashRegisterId: targetRegisterId,
               type: "in",
               amount: total,
               concept: `Venta #${sale.id.slice(0, 8)}`,

@@ -7,14 +7,39 @@ import { logAudit } from "../../utils/audit";
 const router = Router();
 router.use(requireAuth);
 
-router.get("/campaigns", requirePermission("lottery.read"), async (_req, res) => {
-  const campaigns = await prisma.lotteryCampaign.findMany({ include: { items: true } });
-  res.json(campaigns);
+router.get("/campaigns", requirePermission("lottery.read"), async (_req, res, next) => {
+  try {
+    const campaigns = await prisma.lotteryCampaign.findMany({
+      include: { items: { include: { sales: true } } },
+      orderBy: { id: "desc" },
+    });
+
+    // Se calcula aquí (una sola consulta) cuántas unidades se han vendido y
+    // cuántas quedan pendientes por número, en vez de que el frontend tenga
+    // que pedirlo número a número (eso era lo que hacía la pantalla lenta).
+    const withSummary = campaigns.map((c) => ({
+      ...c,
+      items: c.items.map((item) => {
+        const sold = item.sales.reduce((acc, s) => acc + s.unitsSold, 0);
+        return { ...item, sold, pending: item.unitsReceived - sold, sales: undefined };
+      }),
+    }));
+
+    res.json(withSummary);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post("/campaigns", requirePermission("lottery.create"), async (req: AuthedRequest, res, next) => {
   try {
-    const campaign = await prisma.lotteryCampaign.create({ data: req.body });
+    const { name, drawDate } = req.body;
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ error: "El nombre de la campaña es obligatorio" });
+    }
+    const campaign = await prisma.lotteryCampaign.create({
+      data: { name: String(name).trim(), drawDate: drawDate ? new Date(drawDate) : undefined },
+    });
     await logAudit({ userId: req.user!.id, action: "create", module: "lottery_campaigns", recordId: campaign.id });
     res.status(201).json(campaign);
   } catch (err) {
