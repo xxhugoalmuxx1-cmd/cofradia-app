@@ -1,0 +1,8 @@
+{
+  "name": "Gestión Cofradía",
+  "short_name": "Cofradía",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7c2d12"
+}
