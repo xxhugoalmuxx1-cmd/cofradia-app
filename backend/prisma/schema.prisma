@@ -13,7 +13,7 @@ datasource db {
 
 model Role {
   id          String   @id @default(uuid())
-  name        String   @unique
+  name        String   @unique // admin | board_member | viewer
   description String?
   users       User[]
   permissions RolePermission[]
@@ -24,7 +24,7 @@ model Role {
 
 model Permission {
   id          String   @id @default(uuid())
-  code        String   @unique
+  code        String   @unique // ej. finance.create
   module      String
   description String?
   roles       RolePermission[]
