@@ -1,0 +1,391 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------- USUARIOS Y PERMISOS ----------------------
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique // admin | board_member | viewer
+  description String?
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique // ej. finance.create
+  module      String
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  fullName     String    @map("full_name")
+  email        String    @unique
+  phone        String?
+  passwordHash String    @map("password_hash")
+  roleId       String    @map("role_id")
+  role         Role      @relation(fields: [roleId], references: [id])
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  auditLogs      AuditLog[]
+  incomeCreated  Income[]        @relation("IncomeCreatedBy")
+  expenseCreated Expense[]       @relation("ExpenseCreatedBy")
+  cashMovements  CashMovement[]
+  saleCreated    Sale[]
+  lotterySales   LotterySale[]
+  documents      Document[]
+
+  @@map("users")
+}
+
+// ---------------------- SOCIOS ----------------------
+
+model Member {
+  id           String   @id @default(uuid())
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  street       String?
+  phone        String?
+  email        String?
+  address      String?
+  memberNumber String?  @unique @map("member_number")
+  joinDate     DateTime @default(now()) @map("join_date")
+  status       String   @default("active")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  fees         Fee[]
+  donations    Donation[]
+  lotterySales LotterySale[]
+
+  @@map("members")
+}
+
+// ---------------------- CAJA Y BANCO ----------------------
+
+model CashRegister {
+  id             String   @id @default(uuid())
+  name           String
+  currentBalance Decimal  @default(0) @map("current_balance") @db.Decimal(10, 2)
+  movements      CashMovement[]
+  closures       CashClosure[]
+
+  @@map("cash_registers")
+}
+
+model CashMovement {
+  id               String   @id @default(uuid())
+  cashRegisterId   String   @map("cash_register_id")
+  cashRegister     CashRegister @relation(fields: [cashRegisterId], references: [id])
+  type             String   // in | out
+  amount           Decimal  @db.Decimal(10, 2)
+  concept          String
+  resultingBalance Decimal  @map("resulting_balance") @db.Decimal(10, 2)
+  createdByUserId  String   @map("created_by_user_id")
+  createdBy        User     @relation(fields: [createdByUserId], references: [id])
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("cash_movements")
+}
+
+model CashClosure {
+  id              String   @id @default(uuid())
+  cashRegisterId  String   @map("cash_register_id")
+  cashRegister    CashRegister @relation(fields: [cashRegisterId], references: [id])
+  openingBalance  Decimal  @map("opening_balance") @db.Decimal(10, 2)
+  totalIncome     Decimal  @map("total_income") @db.Decimal(10, 2)
+  totalExpense    Decimal  @map("total_expense") @db.Decimal(10, 2)
+  expectedBalance Decimal  @map("expected_balance") @db.Decimal(10, 2)
+  countedBalance  Decimal  @map("counted_balance") @db.Decimal(10, 2)
+  difference      Decimal  @db.Decimal(10, 2)
+  notes           String?
+  closedByUserId  String   @map("closed_by_user_id")
+  closedAt        DateTime @default(now()) @map("closed_at")
+
+  @@map("cash_closures")
+}
+
+model BankAccount {
+  id             String   @id @default(uuid())
+  name           String
+  bankName       String?  @map("bank_name")
+  iban           String?
+  initialBalance Decimal  @default(0) @map("initial_balance") @db.Decimal(10, 2)
+  currentBalance Decimal  @default(0) @map("current_balance") @db.Decimal(10, 2)
+  movements      BankMovement[]
+
+  @@map("bank_accounts")
+}
+
+model BankMovement {
+  id               String   @id @default(uuid())
+  bankAccountId    String   @map("bank_account_id")
+  bankAccount      BankAccount @relation(fields: [bankAccountId], references: [id])
+  type             String
+  amount           Decimal  @db.Decimal(10, 2)
+  concept          String
+  date             DateTime @default(now())
+  resultingBalance Decimal? @map("resulting_balance") @db.Decimal(10, 2)
+  reconciled       Boolean  @default(false)
+
+  @@map("bank_movements")
+}
+
+// ---------------------- TESORERÍA ----------------------
+
+model Income {
+  id              String    @id @default(uuid())
+  date            DateTime  @default(now())
+  concept         String
+  category        String?
+  amount          Decimal   @db.Decimal(10, 2)
+  paymentMethod   String    @map("payment_method")
+  memberId        String?   @map("member_id")
+  eventId         String?   @map("event_id")
+  notes           String?
+  cashRegisterId  String?   @map("cash_register_id")
+  bankAccountId   String?   @map("bank_account_id")
+  createdByUserId String    @map("created_by_user_id")
+  createdBy       User      @relation("IncomeCreatedBy", fields: [createdByUserId], references: [id])
+  voidedByUserId  String?   @map("voided_by_user_id")
+  voidReason      String?   @map("void_reason")
+  voidedAt        DateTime? @map("voided_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("income")
+}
+
+model Expense {
+  id              String    @id @default(uuid())
+  date            DateTime  @default(now())
+  concept         String
+  category        String?
+  amount          Decimal   @db.Decimal(10, 2)
+  supplier        String?
+  paymentMethod   String    @map("payment_method")
+  eventId         String?   @map("event_id")
+  invoiceRef      String?   @map("invoice_ref")
+  notes           String?
+  cashRegisterId  String?   @map("cash_register_id")
+  bankAccountId   String?   @map("bank_account_id")
+  createdByUserId String    @map("created_by_user_id")
+  createdBy       User      @relation("ExpenseCreatedBy", fields: [createdByUserId], references: [id])
+  voidedByUserId  String?   @map("voided_by_user_id")
+  voidReason      String?   @map("void_reason")
+  voidedAt        DateTime? @map("voided_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("expenses")
+}
+
+// ---------------------- VENTAS Y PRODUCTOS ----------------------
+
+model ProductCategory {
+  id       String    @id @default(uuid())
+  name     String
+  products Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id         String   @id @default(uuid())
+  name       String
+  description String?
+  price      Decimal  @db.Decimal(10, 2)
+  cost       Decimal? @db.Decimal(10, 2)
+  stock      Int      @default(0)
+  minStock   Int      @default(0) @map("min_stock")
+  imageUrl   String?  @map("image_url")
+  categoryId String?  @map("category_id")
+  category   ProductCategory? @relation(fields: [categoryId], references: [id])
+  isActive   Boolean  @default(true) @map("is_active")
+  saleItems  SaleItem[]
+
+  @@map("products")
+}
+
+model Sale {
+  id              String   @id @default(uuid())
+  date            DateTime @default(now())
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(10, 2)
+  paymentMethod   String   @map("payment_method")
+  memberId        String?  @map("member_id")
+  eventId         String?  @map("event_id")
+  createdByUserId String   @map("created_by_user_id")
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  items           SaleItem[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id          String   @id @default(uuid())
+  saleId      String   @map("sale_id")
+  sale        Sale     @relation(fields: [saleId], references: [id])
+  productId   String?  @map("product_id")
+  product     Product? @relation(fields: [productId], references: [id])
+  description String?  // usado cuando la línea no corresponde a un producto de catálogo (cobro manual)
+  quantity    Int
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  subtotal    Decimal  @db.Decimal(10, 2)
+
+  @@map("sale_items")
+}
+
+// ---------------------- LOTERÍA ----------------------
+
+model LotteryCampaign {
+  id        String   @id @default(uuid())
+  name      String
+  drawDate  DateTime? @map("draw_date")
+  isActive  Boolean  @default(true) @map("is_active")
+  items     LotteryItem[]
+
+  @@map("lottery_campaigns")
+}
+
+model LotteryItem {
+  id             String   @id @default(uuid())
+  campaignId     String   @map("campaign_id")
+  campaign       LotteryCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  number         String
+  price          Decimal  @db.Decimal(10, 2)
+  donationAmount Decimal  @default(0) @map("donation_amount") @db.Decimal(10, 2)
+  unitsReceived  Int?     @map("units_received")
+  sales          LotterySale[]
+
+  @@map("lottery_items")
+}
+
+model LotterySale {
+  id                String   @id @default(uuid())
+  lotteryItemId     String   @map("lottery_item_id")
+  lotteryItem       LotteryItem @relation(fields: [lotteryItemId], references: [id], onDelete: Cascade)
+  memberId          String?  @map("member_id")
+  member            Member?  @relation(fields: [memberId], references: [id])
+  unitType          String   @default("decimo") @map("unit_type") // "decimo" o "sabana"
+  series            String?
+  unitsSold         Int      @map("units_sold")
+  amountPaid        Decimal  @map("amount_paid") @db.Decimal(10, 2)
+  paymentStatus     String   @default("paid") @map("payment_status")
+  delivered         Boolean  @default(false)
+  establishmentName String?  @map("establishment_name")
+  createdByUserId   String   @map("created_by_user_id")
+  createdBy         User     @relation(fields: [createdByUserId], references: [id])
+  saleDate          DateTime @default(now()) @map("sale_date")
+
+  @@map("lottery_sales")
+}
+
+// ---------------------- CUOTAS Y DONATIVOS ----------------------
+
+model FeePeriod {
+  id     String @id @default(uuid())
+  name   String
+  amount Decimal @db.Decimal(10, 2)
+  year   Int
+  fees   Fee[]
+
+  @@map("fee_periods")
+}
+
+model Fee {
+  id            String    @id @default(uuid())
+  feePeriodId   String    @map("fee_period_id")
+  feePeriod     FeePeriod @relation(fields: [feePeriodId], references: [id], onDelete: Cascade)
+  memberId      String    @map("member_id")
+  member        Member    @relation(fields: [memberId], references: [id])
+  paid          Boolean   @default(false)
+  paidDate      DateTime? @map("paid_date")
+  amount        Decimal   @db.Decimal(10, 2)
+  paymentMethod String?   @map("payment_method")
+
+  @@map("fees")
+}
+
+model Donation {
+  id       String   @id @default(uuid())
+  memberId String?  @map("member_id")
+  member   Member?  @relation(fields: [memberId], references: [id])
+  date     DateTime @default(now())
+  amount   Decimal  @db.Decimal(10, 2)
+  paymentMethod String @map("payment_method")
+  reason   String?
+  eventId  String?  @map("event_id")
+  notes    String?
+
+  @@map("donations")
+}
+
+// ---------------------- EVENTOS Y DOCUMENTOS ----------------------
+
+model Event {
+  id          String   @id @default(uuid())
+  name        String
+  date        DateTime
+  description String?
+  budget      Decimal? @db.Decimal(10, 2)
+  notes       String?
+
+  @@map("events")
+}
+
+model Document {
+  id              String   @id @default(uuid())
+  filename        String
+  concept         String?
+  storagePath     String   @map("storage_path")
+  mimeType        String?  @map("mime_type")
+  relatedModule   String?  @map("related_module")
+  relatedId       String?  @map("related_id")
+  uploadedByUserId String  @map("uploaded_by_user_id")
+  uploadedBy      User     @relation(fields: [uploadedByUserId], references: [id])
+  uploadedAt      DateTime @default(now()) @map("uploaded_at")
+
+  @@map("documents")
+}
+
+// ---------------------- AUDITORÍA ----------------------
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id])
+  action       String
+  module       String
+  recordId     String?  @map("record_id")
+  previousValue Json?   @map("previous_value")
+  newValue     Json?    @map("new_value")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
