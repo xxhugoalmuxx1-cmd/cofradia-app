@@ -4,7 +4,7 @@ on:
   schedule:
     # Se ejecuta todos los lunes y jueves a las 08:00 UTC
     - cron: '0 8 * * 1,4'
-  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+  workflow_dispatch:
 
 jobs:
   ping:
@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: Send keep-alive ping to Supabase
         run: |
-          curl -s -o /dev/null -w "%{http_code}" -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/" \
+          curl -sS -I "https://yjtzkyqsdgwnsltemvjf.supabase.co/rest/v1/" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" || true
