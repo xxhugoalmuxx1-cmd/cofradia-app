@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useConfirm } from "../context/ConfirmContext";
+import { useMoneyFormatter } from "../context/PrivacyContext";
 
 const EMPTY = { amount: "", paymentMethod: "efectivo", reason: "" };
 const CURRENT_YEAR = new Date().getFullYear();
@@ -51,7 +52,7 @@ export default function Donations() {
   }
 
   const total = donations.reduce((acc, d) => acc + Number(d.amount), 0);
-  const fmt = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+  const fmt = useMoneyFormatter();
 
   return (
     <div className="space-y-6">

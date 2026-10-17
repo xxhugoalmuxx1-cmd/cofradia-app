@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useMoneyFormatter } from "../context/PrivacyContext";
 
 interface Summary {
   balance: { total: number; cash: number; bank: number };
@@ -8,6 +9,7 @@ interface Summary {
 }
 
 export default function Dashboard() {
+  const fmt = useMoneyFormatter();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -35,7 +37,6 @@ export default function Dashboard() {
     </div>
   );
 
-  const fmt = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 
   return (
     <div>

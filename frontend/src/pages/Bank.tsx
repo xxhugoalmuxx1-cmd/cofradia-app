@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useConfirm } from "../context/ConfirmContext";
+import { useMoneyFormatter } from "../context/PrivacyContext";
 
 const EMPTY_ACCOUNT = { name: "", bankName: "", iban: "", initialBalance: "" };
 const EMPTY_MOVEMENT = { type: "in", amount: "", concept: "" };
@@ -108,7 +109,7 @@ export default function Bank() {
     }
   }
 
-  const fmt = (n: number) => Number(n).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+  const fmt = useMoneyFormatter();
   const selectedAccount = accounts.find((a) => a.id === selected);
   const totalBanks = accounts.reduce((acc, a) => acc + Number(a.currentBalance), 0);
 

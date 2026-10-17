@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useConfirm } from "../context/ConfirmContext";
+import { useMoneyFormatter } from "../context/PrivacyContext";
 
 interface ItemForm {
   number: string;
@@ -252,7 +253,7 @@ export default function Lottery() {
     (acc, c) => acc + (c.items?.reduce((s: number, i: any) => s + (i.pendingPayment || 0), 0) || 0),
     0
   );
-  const fmt = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+  const fmt = useMoneyFormatter();
 
   return (
     <div className="space-y-6">
@@ -414,7 +415,7 @@ export default function Lottery() {
                       <span className="text-xs text-gray-400">{s.createdBy?.fullName} — {new Date(s.saleDate).toLocaleString("es-ES")}</span>
                     </span>
                     <span className="flex items-center gap-2">
-                      <span className="font-medium">{Number(s.amountPaid).toFixed(2)} €</span>
+                      <span className="font-medium">{fmt(Number(s.amountPaid))}</span>
                       <button onClick={() => startEditSale(s)} className="text-xs text-brand hover:underline">Editar</button>
                     </span>
                   </div>

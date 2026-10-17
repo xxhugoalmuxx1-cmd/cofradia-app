@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
+import { useMoneyFormatter } from "../context/PrivacyContext";
 
 export default function Reports() {
   const [from, setFrom] = useState("");
@@ -28,7 +29,7 @@ export default function Reports() {
     link.click();
   }
 
-  const fmt = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+  const fmt = useMoneyFormatter();
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useMoneyFormatter } from "../context/PrivacyContext";
 
 const CASH_REGISTER_ID = "00000000-0000-0000-0000-000000000001";
 const CURRENT_YEAR = new Date().getFullYear();
@@ -7,6 +8,7 @@ const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
 const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
 export default function Cash() {
+  const fmt = useMoneyFormatter();
   const [register, setRegister] = useState<any>(null);
   const [amount, setAmount] = useState("");
   const [concept, setConcept] = useState("");
@@ -73,7 +75,7 @@ export default function Cash() {
       <div className="bg-gradient-to-br from-brand to-brand-dark rounded-2xl shadow-md p-6 text-center text-white">
         <div className="text-xs uppercase tracking-wider text-white/70 mb-1">Saldo actual</div>
         <div className="text-4xl font-bold">
-          {Number(register.currentBalance).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}
+          {fmt(Number(register.currentBalance))}
         </div>
       </div>
 
@@ -180,7 +182,7 @@ export default function Cash() {
               </span>
               <span className={`font-medium shrink-0 ${m.type === "in" ? "text-emerald-600" : "text-red-600"}`}>
                 {m.type === "in" ? "+" : "-"}
-                {Number(m.amount).toFixed(2)} €
+                {fmt(Number(m.amount))}
               </span>
             </li>
           ))}
