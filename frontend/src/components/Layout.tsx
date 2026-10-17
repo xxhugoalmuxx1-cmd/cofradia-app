@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { HeroImage } from "./HeroImage";
+import { usePrivacy } from "../context/PrivacyContext";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: "📊" },
@@ -27,6 +28,7 @@ const ADMIN_NAV_ITEMS = [
 // barra inferior (5 accesos rápidos) + menú completo en móvil.
 export function Layout() {
   const { user, logout } = useAuth();
+  const { hideAmounts, toggleHideAmounts } = usePrivacy();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const allItems = user?.role === "admin" ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
@@ -77,9 +79,19 @@ export function Layout() {
         </nav>
         <div className="text-xs text-white/70 px-5 py-3 border-t border-white/15">
           <div className="font-medium text-white/90 truncate">{user?.fullName}</div>
-          <button onClick={logout} className="underline mt-1 hover:text-white">
-            Cerrar sesión
-          </button>
+          <div className="flex items-center justify-between mt-1">
+            <button onClick={logout} className="underline hover:text-white">
+              Cerrar sesión
+            </button>
+            <button
+              onClick={toggleHideAmounts}
+              title={hideAmounts ? "Mostrar importes" : "Ocultar importes"}
+              aria-label={hideAmounts ? "Mostrar importes" : "Ocultar importes"}
+              className="text-lg leading-none px-2 py-1 rounded-lg hover:bg-white/10"
+            >
+              {hideAmounts ? "🙈" : "👁️"}
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -95,9 +107,19 @@ export function Layout() {
           <HeroImage variant="avatar" size={28} />
           <span className="font-semibold tracking-wide truncate">Purísima</span>
         </span>
-        <button onClick={logout} className="text-sm underline shrink-0">
-          Salir
-        </button>
+        <span className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={toggleHideAmounts}
+            title={hideAmounts ? "Mostrar importes" : "Ocultar importes"}
+            aria-label={hideAmounts ? "Mostrar importes" : "Ocultar importes"}
+            className="text-xl leading-none"
+          >
+            {hideAmounts ? "🙈" : "👁️"}
+          </button>
+          <button onClick={logout} className="text-sm underline">
+            Salir
+          </button>
+        </span>
       </header>
 
       <main className="flex-1 min-w-0 p-3 sm:p-4 md:p-6 pb-24 md:pb-6 overflow-y-auto overflow-x-hidden">
